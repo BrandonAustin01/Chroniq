@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "chroniq"
+version = "0.1.0"
+description = "A beginner-friendly, pro-grade versioning and changelog manager using SemVer and Markdown."
+authors = ["Brandon McKinney <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/yourusername/chroniq"
+repository = "https://github.com/yourusername/chroniq"
+keywords = ["versioning", "changelog", "semver", "cli", "developer-tools"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Version Control",
+    "Environment :: Console"
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+click = "^8.1.7"
+rich = "^13.7.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.3.1"
+
+[tool.poetry.scripts]
+chroniq = "chroniq.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

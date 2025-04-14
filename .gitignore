@@ -1,0 +1,55 @@
+# ─── Python ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.log
+
+# ─── Poetry / Build System ────────────────────────
+dist/
+build/
+.cache/
+poetry.lock
+
+# ─── VS Code / IDEs ───────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── Environments ─────────────────────────────────
+.env
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# ─── OS Files ─────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Pytest ───────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# ─── Test Artifacts ───────────────────────────────
+*.tmp
+*.log
+*.bak
+test-output/
+
+# ─── Hatch (if used later) ────────────────────────
+__pypackages__/
+
+# ─── API keys or secrets ────────────────────────
+.env
+.env.*
+*.secret
