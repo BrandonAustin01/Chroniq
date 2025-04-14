@@ -5,8 +5,8 @@ description = "A beginner-friendly, pro-grade versioning and changelog manager u
 authors = ["Brandon McKinney <you@example.com>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/yourusername/chroniq"
-repository = "https://github.com/yourusername/chroniq"
+homepage = "https://github.com/BrandonAustin01/chroniq"
+repository = "https://github.com/BrandonAustin01/chroniq"
 keywords = ["versioning", "changelog", "semver", "cli", "developer-tools"]
 classifiers = [
     "Programming Language :: Python :: 3",

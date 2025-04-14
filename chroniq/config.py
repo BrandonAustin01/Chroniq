@@ -3,13 +3,13 @@
 import json
 import tomllib  # Python 3.11+
 from pathlib import Path
-from rich import print
 from typing import Dict
+from rich import print
+from chroniq.utils import emoji  # Safe emoji support
 
 # Config file search priority
 TOML_PATH = Path(".chroniq.toml")
 JSON_PATH = Path(".chroniqrc.json")
-
 
 def load_config() -> Dict[str, str]:
     """
@@ -36,17 +36,17 @@ def load_config() -> Dict[str, str]:
             with open(TOML_PATH, "rb") as f:
                 toml_data = tomllib.load(f)
                 config = toml_data.get("settings", {})  # flatten from [settings]
-            print("⚙️  [green]Loaded configuration from .chroniq.toml[/green]")
+            print(f"{emoji('⚙️', '[cfg]')} [green]Loaded configuration from .chroniq.toml[/green]")
         except Exception as e:
-            print(f"❌ [red]Error parsing .chroniq.toml:[/red] {e}")
+            print(f"{emoji('❌', '[error]')} [red]Error parsing .chroniq.toml:[/red] {e}")
 
     elif JSON_PATH.exists():
         try:
             with open(JSON_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
-            print("⚙️  [green]Loaded configuration from .chroniqrc.json[/green]")
+            print(f"{emoji('⚙️', '[cfg]')} [green]Loaded configuration from .chroniqrc.json[/green]")
         except Exception as e:
-            print(f"❌ [red]Error parsing .chroniqrc.json:[/red] {e}")
+            print(f"{emoji('❌', '[error]')} [red]Error parsing .chroniqrc.json:[/red] {e}")
 
     return config
 

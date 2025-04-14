@@ -2,9 +2,10 @@
 
 import re
 from pathlib import Path
+from rich import print
+from chroniq.utils import emoji  # Safe emoji wrapper
 
 # Default location for storing the version information.
-# You can change this path if your project requires a different location.
 VERSION_FILE = Path("version.txt")
 
 class SemVer:
@@ -22,7 +23,7 @@ class SemVer:
     def __init__(self, major=0, minor=1, patch=0):
         """
         Initialize a new SemVer object.
-        By default, the version is set to 0.1.0 (a common starting point).
+        Default version starts at 0.1.0 (a safe baseline for early development).
         """
         self.major = major
         self.minor = minor
@@ -30,23 +31,20 @@ class SemVer:
 
     def __str__(self):
         """
-        Return the version as a formatted string (e.g., '1.2.3').
-        This is what gets written to the version file and displayed to users.
+        Return version as 'MAJOR.MINOR.PATCH', e.g., '1.2.3'.
         """
         return f"{self.major}.{self.minor}.{self.patch}"
 
     def bump_patch(self):
         """
-        Increment the PATCH version by 1.
-        Use this when making backwards-compatible bug fixes.
+        Increment PATCH version by 1.
         Example: 1.2.3 → 1.2.4
         """
         self.patch += 1
 
     def bump_minor(self):
         """
-        Increment the MINOR version by 1 and reset PATCH to 0.
-        Use this when adding functionality in a backward-compatible manner.
+        Increment MINOR version by 1 and reset PATCH to 0.
         Example: 1.2.3 → 1.3.0
         """
         self.minor += 1
@@ -54,8 +52,7 @@ class SemVer:
 
     def bump_major(self):
         """
-        Increment the MAJOR version by 1 and reset MINOR and PATCH to 0.
-        Use this when making incompatible API changes.
+        Increment MAJOR version by 1 and reset MINOR and PATCH to 0.
         Example: 1.2.3 → 2.0.0
         """
         self.major += 1
@@ -65,51 +62,54 @@ class SemVer:
     @classmethod
     def from_string(cls, version_str):
         """
-        Parse a version string (e.g., '1.2.3') and return a SemVer object.
-        This is used internally to read and validate version strings.
+        Parse a version string and return a SemVer object.
 
-        :param version_str: A string in MAJOR.MINOR.PATCH format
-        :return: SemVer instance
-        :raises ValueError: if the string is not a valid version format
+        Parameters:
+            version_str (str): A string like '1.2.3'
+
+        Returns:
+            SemVer instance
+
+        Raises:
+            ValueError: If format is not valid SemVer.
         """
         match = re.match(r"(\d+)\.(\d+)\.(\d+)", version_str)
         if not match:
-            raise ValueError(f"❌ Invalid version format: '{version_str}'. Expected format is MAJOR.MINOR.PATCH, e.g., '1.0.0'")
+            raise ValueError(f"{emoji('❌', '[error]')} Invalid version format: '{version_str}'. Expected format is MAJOR.MINOR.PATCH.")
         return cls(int(match.group(1)), int(match.group(2)), int(match.group(3)))
 
     @classmethod
     def load(cls, path=VERSION_FILE):
         """
-        Load version from a file.
-        If the file does not exist, it will return a default version (0.1.0).
+        Load version from a file. If missing, defaults to 0.1.0.
 
-        :param path: Path to the version file
-        :return: SemVer instance representing the current version
+        Parameters:
+            path (Path): Path to the version file
+
+        Returns:
+            SemVer instance
         """
         if not path.exists():
-            print("🔍 No version file found. Defaulting to 0.1.0")
+            print(f"{emoji('⚠️', '[warn]')} [yellow]No version file found. Defaulting to 0.1.0[/yellow]")
             return cls()
-        with open(path, 'r') as f:
-            version_str = f.read().strip()
-            return cls.from_string(version_str)
+        try:
+            with open(path, 'r', encoding="utf-8") as f:
+                version_str = f.read().strip()
+                return cls.from_string(version_str)
+        except Exception as e:
+            print(f"{emoji('❌', '[error]')} [red]Failed to read version file:[/red] {e}")
+            return cls()
 
-    def save(self, path=VERSION_FILE):
+    def save(self, path: Path = VERSION_FILE):
         """
-        Save the current version to a file (overwrites existing version).
-        Creates the file if it doesn't exist.
+        Save the current version to a file.
 
-        :param path: Path to save the version to
+        Parameters:
+            path (Path): Path to write version file
         """
-        with open(path, 'w') as f:
-            f.write(str(self))
-        print(f"💾 Version {self} saved to '{path}'")
-
-
-# 🔧 Developer Example:
-# Use the following snippet in your script to bump and save a version:
-#
-# from chroniq.core import SemVer
-# version = SemVer.load()
-# version.bump_patch()         # or bump_minor(), bump_major()
-# version.save()
-# print("✅ New version:", version)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(str(self))
+            print(f"{emoji('💾', '[save]')} Version [bold cyan]{self}[/bold cyan] saved to '{path}'")
+        except Exception as e:
+            print(f"{emoji('❌', '[error]')} [red]Failed to save version:[/red] {e}")

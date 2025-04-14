@@ -1,6 +1,6 @@
 # 🕰️ Chroniq
 
-![License](https://img.shields.io/github/license/yourusername/chroniq?style=flat-square)
+![License](https://img.shields.io/github/license/BrandonAustin01/chroniq?style=flat-square)
 ![Python Version](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square)
 ![Build](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
 ![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red?style=flat-square)

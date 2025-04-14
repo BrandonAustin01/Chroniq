@@ -1,15 +1,17 @@
-### chroniq/cli.py
-
 import click
-from rich import print
-from rich.panel import Panel
+import sys
+from pathlib import Path
 from rich.console import Console
+from rich.panel import Panel
 from chroniq.core import SemVer
 from chroniq.changelog import add_entry
 from chroniq.config import load_config
-from pathlib import Path
+from chroniq.utils import emoji
 
-console = Console()
+# Create a console with forced UTF-8 encoding for better emoji safety
+console = Console(file=sys.stdout, force_terminal=True)
+
+# Default file paths for version and changelog
 VERSION_FILE = Path("version.txt")
 CHANGELOG_FILE = Path("CHANGELOG.md")
 
@@ -21,47 +23,35 @@ def main():
     This tool helps developers manage their project's version and changelog files
     using Semantic Versioning (SemVer). You can bump versions, initialize config files,
     and display recent changelog entries with human-friendly CLI feedback.
-
-    Example usage:
-      chroniq init          # Sets up version.txt and CHANGELOG.md
-      chroniq bump patch    # Bumps the patch number (e.g., 1.2.3 -> 1.2.4)
-      chroniq log --lines 5 # Shows last 5 changelog entries
     """
-    pass
+    console.print(f"[bold magenta]{emoji('🔮', '[start]')} Chroniq CLI initialized.[/bold magenta]")
 
 @main.command()
 @click.argument("level", required=False)
-def bump(level):
+@click.option("--silent", is_flag=True, help="Suppress output and interactive prompts.")
+def bump(level, silent):
     """
     Apply a version bump based on semantic versioning rules.
 
     If no level is provided, uses default_bump from config or 'patch'.
-    Options:
-      patch → Backwards-compatible bug fix
-      minor → Backwards-compatible new feature
-      major → Incompatible API change
-
-    Example:
-      chroniq bump minor
+    Options: patch, minor, major
     """
     config = load_config()
-    silent_mode = config.get("silent", False)
+    silent_mode = silent or config.get("silent", False)
 
-    # Use passed CLI argument or config fallback
-    bump_level = level or config.get("default_bump", "patch")
-    bump_level = bump_level.lower()
-
+    bump_level = (level or config.get("default_bump", "patch")).lower()
     if bump_level not in ["patch", "minor", "major"]:
-        print(f"❌ [red]Invalid bump level:[/red] '{bump_level}' — must be patch, minor, or major.")
+        console.print(f"{emoji('❌', '[error]')} [red]Invalid bump level:[/red] '{bump_level}' — must be patch, minor, or major.")
         return
 
     try:
         version = SemVer.load()
 
         if not silent_mode:
-            print(Panel.fit(f"📦 Current version: [bold yellow]{version}[/bold yellow]", title="Chroniq"))
+            console.print(Panel.fit(
+                f"{emoji('📦', '[version]')} Current version: [bold yellow]{version}[/bold yellow]",
+                title="Chroniq"))
 
-        # Apply the version bump
         if bump_level == "patch":
             version.bump_patch()
         elif bump_level == "minor":
@@ -72,71 +62,90 @@ def bump(level):
         version.save()
 
         if not silent_mode:
-            print(Panel.fit(f"✅ New version: [bold green]{version}[/bold green]", title="Version Updated"))
+            console.print(Panel.fit(
+                f"{emoji('✅', '[ok]')} New version: [bold green]{version}[/bold green]",
+                title="Version Updated"))
 
             if click.confirm("Would you like to add a changelog entry for this version?", default=True):
-                message = click.prompt("📝 Describe the change", default="", show_default=False)
+                message = click.prompt(f"{emoji('🗘️', '[log]')} Describe the change", default="", show_default=False)
                 add_entry(str(version), message)
 
     except Exception as e:
-        print(f"[bold red]❌ Failed to bump version:[/bold red] {e}")
+        console.print(f"{emoji('❌', '[error]')} [bold red]Failed to bump version:[/bold red] {e}")
 
 @main.command()
 def init():
     """
-    Set up Chroniq in your project.
-
-    This command will create `version.txt` and `CHANGELOG.md` if they don't exist yet.
-    These files store your current project version and track your changelog entries.
+    Initialize Chroniq in your project folder by creating `version.txt` and `CHANGELOG.md`
     """
     if VERSION_FILE.exists():
-        print("✅ [green]version.txt already exists.[/green]")
+        console.print(f"{emoji('✅', '[ok]')} [green]version.txt already exists.[/green]")
     else:
         SemVer().save()
-        print("📄 [cyan]Created version.txt with default version 0.1.0[/cyan]")
+        console.print(f"{emoji('📄', '[file]')} [cyan]Created version.txt with default version 0.1.0[/cyan]")
 
     if CHANGELOG_FILE.exists():
-        print("✅ [green]CHANGELOG.md already exists.[/green]")
+        console.print(f"{emoji('✅', '[ok]')} [green]CHANGELOG.md already exists.[/green]")
     else:
-        with open(CHANGELOG_FILE, 'w') as f:
+        with open(CHANGELOG_FILE, 'w', encoding="utf-8") as f:
             f.write("# Changelog\n\nAll notable changes to this project will be documented here.\n")
-        print("📄 [cyan]Created CHANGELOG.md[/cyan]")
+        console.print(f"{emoji('📄', '[file]')} [cyan]Created CHANGELOG.md[/cyan]")
 
 @main.command()
 @click.option('--lines', default=5, help='Number of recent changelog entries to display')
 def log(lines):
     """
-    Display recent changelog entries from CHANGELOG.md.
-
-    Example:
-      chroniq log --lines 5
+    Show the latest changelog entries from the CHANGELOG.md file
     """
     if not CHANGELOG_FILE.exists():
-        print("❌ [red]No CHANGELOG.md found. Please run `chroniq init` first.[/red]")
+        console.print(f"{emoji('❌', '[error]')} [red]No CHANGELOG.md found. Please run `chroniq init` first.[/red]")
         return
 
-    with open(CHANGELOG_FILE, 'r') as f:
+    with open(CHANGELOG_FILE, 'r', encoding="utf-8") as f:
         content = f.readlines()
 
-    # Extract and show the latest non-empty lines
-    filtered = [line.strip() for line in content if line.strip() != '']
+    filtered = [line.strip() for line in content if line.strip()]
     recent = filtered[-lines:] if lines <= len(filtered) else filtered
 
-    print(Panel.fit("\n".join(recent), title=f"📝 Last {len(recent)} Changelog Lines"))
+    def format_log_line(line):
+        if line.startswith("Added"):
+            return f"[green]{line}[/green]"
+        elif line.startswith("Changed"):
+            return f"[yellow]{line}[/yellow]"
+        elif line.startswith("Fixed"):
+            return f"[red]{line}[/red]"
+        return line
+
+    formatted = "\n".join(format_log_line(line) for line in recent)
+    console.print(Panel.fit(formatted, title=f"{emoji('🗘️', '[log]')} Last {len(recent)} Changelog Lines"))
 
 @main.command()
 def version():
     """
-    Display the current project version stored in version.txt.
-
-    Example:
-      chroniq version
+    Show the current version of your project
     """
     try:
         version = SemVer.load()
-        print(f"📌 [bold cyan]Current project version:[/bold cyan] {version}")
+        console.print(f"{emoji('📌', '[ver]')} [bold cyan]Current project version:[/bold cyan] {version}")
     except Exception as e:
-        print(f"[bold red]❌ Failed to read version:[/bold red] {e}")
+        console.print(f"{emoji('❌', '[error]')} [bold red]Failed to read version:[/bold red] {e}")
+
+@main.command()
+def reset():
+    """
+    Reset Chroniq by deleting version.txt and CHANGELOG.md.
+    
+    This is useful if you want to wipe versioning state and start over.
+    """
+    try:
+        # Attempt to remove version.txt
+        VERSION_FILE.unlink(missing_ok=True)
+        # Attempt to remove changelog
+        CHANGELOG_FILE.unlink(missing_ok=True)
+        console.print(f"{emoji('🧹', '[reset]')} [yellow]Chroniq files have been reset.[/yellow]")
+    except Exception as e:
+        console.print(f"{emoji('❌', '[error]')} [bold red]Failed to reset files:[/bold red] {e}")
+
 
 if __name__ == "__main__":
     main()
