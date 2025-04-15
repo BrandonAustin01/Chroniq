@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "chroniq"
-version = "0.1.0"
+version = "0.1.2"
 description = "A beginner-friendly, pro-grade versioning and changelog manager using SemVer and Markdown."
 authors = ["Brandon McKinney <you@example.com>"]
 license = "MIT"

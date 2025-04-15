@@ -9,7 +9,7 @@ from chroniq.config import load_config
 from chroniq.utils import emoji
 
 # Create a console with forced UTF-8 encoding for better emoji safety
-console = Console(file=sys.stdout, force_terminal=True)
+console = Console(file=sys.stdout)
 
 # Default file paths for version and changelog
 VERSION_FILE = Path("version.txt")
@@ -28,21 +28,24 @@ def main():
 
 @main.command()
 @click.argument("level", required=False)
+@click.option("--pre", default=None, help="Apply a prerelease label like alpha.1 or rc")
 @click.option("--silent", is_flag=True, help="Suppress output and interactive prompts.")
-def bump(level, silent):
+def bump(level, pre, silent):
     """
     Apply a version bump based on semantic versioning rules.
 
-    If no level is provided, uses default_bump from config or 'patch'.
-    Options: patch, minor, major
+    Options:
+        patch, minor, major
+        --pre alpha.1  (append prerelease label)
     """
     config = load_config()
     silent_mode = silent or config.get("silent", False)
 
     bump_level = (level or config.get("default_bump", "patch")).lower()
-    if bump_level not in ["patch", "minor", "major"]:
-        console.print(f"{emoji('❌', '[error]')} [red]Invalid bump level:[/red] '{bump_level}' — must be patch, minor, or major.")
+    if bump_level not in ["patch", "minor", "major", "pre"]:
+        console.print(f"{emoji('❌', '[error]')} [red]Invalid bump level:[/red] '{bump_level}' — must be patch, minor, major, or pre.")
         return
+
 
     try:
         version = SemVer.load()
@@ -58,6 +61,12 @@ def bump(level, silent):
             version.bump_minor()
         elif bump_level == "major":
             version.bump_major()
+        elif bump_level == "pre":
+            version.bump_prerelease(pre or "alpha")  # default label is "alpha"
+
+# Explicit override for prerelease if user passes --pre with patch/minor/major
+        elif pre and bump_level in ["patch", "minor", "major"]:
+            version.prerelease = pre
 
         version.save()
 
@@ -72,6 +81,7 @@ def bump(level, silent):
 
     except Exception as e:
         console.print(f"{emoji('❌', '[error]')} [bold red]Failed to bump version:[/bold red] {e}")
+
 
 @main.command()
 def init():

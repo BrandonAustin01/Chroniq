@@ -1,9 +1,15 @@
-# 🕰️ Chroniq
+# 🔮 Chroniq — Smart Versioning & Changelog CLI
 
 ![License](https://img.shields.io/github/license/BrandonAustin01/chroniq?style=flat-square)
 ![Python Version](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square)
 ![Build](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
 ![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red?style=flat-square)
+
+**Chroniq** is a lightweight, developer-friendly CLI tool that helps you manage project versions and changelogs using Semantic Versioning.  
+Designed for simplicity, cross-platform support, and a smooth developer workflow.
+
+> _“Because your version deserves a voice — and your changelog deserves style.”_
+
 
 > Chroniq is your intelligent, beginner-friendly versioning and changelog assistant. Built with ❤️ for developers who want clean version control without the headache.
 
@@ -16,7 +22,7 @@
 - 💬 **Interactive CLI** with rich prompts and emoji feedback
 - ⚙️ **Custom config** via `.chroniq.toml` or `.chroniqrc.json`
 - 🔧 **Safe version bumping** with optional changelog entry
-- ✅ **100% test coverage** — built and tested like a pro
+- ✅ **100% test coverage** — built and tested extensivley
 
 ---
 
