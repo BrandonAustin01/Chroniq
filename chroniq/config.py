@@ -1,59 +1,104 @@
-### chroniq/config.py
-
+import tomllib  # built-in TOML parser in Python 3.11+
 import json
-import tomllib  # Python 3.11+
+import tomli_w
 from pathlib import Path
-from typing import Dict
 from rich import print
-from chroniq.utils import emoji  # Safe emoji support
+from chroniq.utils import emoji
+from chroniq.logger import system_log, activity_log  # ✅ add this
 
-# Config file search priority
-TOML_PATH = Path(".chroniq.toml")
-JSON_PATH = Path(".chroniqrc.json")
 
-def load_config() -> Dict[str, str]:
+# Default config file path (can later support multiple tiers)
+CONFIG_PATH = Path(".chroniq.toml")
+
+# Default fallback config if no .chroniq.toml is found or fails to load
+DEFAULT_CONFIG = {
+    "default_bump": "patch",
+    "silent": False,
+    "strict": False,
+    "emoji_fallback": True,
+    "version_file": "version.txt",
+    "changelog_file": "CHANGELOG.md",
+    "log_dir": "data/logs",
+    "activity_log": "data/logs/activity.log",
+    "auto_increment_prerelease": True,
+    "require_changelog_heading": False,
+}
+
+def deep_merge(base, update):
+    """Recursively merges dictionaries, with 'update' taking precedence."""
+    for key, value in update.items():
+        if isinstance(value, dict) and key in base:
+            base[key] = deep_merge(base.get(key, {}), value)
+        else:
+            base[key] = value
+    return base
+
+def load_config(config_path: Path = CONFIG_PATH) -> dict:
     """
-    Load Chroniq project configuration.
-
-    Supports either a .chroniq.toml or .chroniqrc.json file in the current directory.
-
-    Priority:
-        1. .chroniq.toml (recommended, supports [settings] block)
-        2. .chroniqrc.json (fallback)
-
-    Returns:
-        dict: Parsed configuration values. If no file is found or parsing fails,
-              an empty dictionary is returned.
-
-    Example:
-        config = load_config()
-        silent = config.get("silent", False)
+    Load and parse the Chroniq configuration from a TOML file.
+    Includes safe fallback to default config and strict profile handling.
     """
-    config: dict = {}
+    if not config_path.exists():
+        system_log.warning("No .chroniq.toml found. Using fallback defaults.")
+        return DEFAULT_CONFIG.copy()
 
-    if TOML_PATH.exists():
-        try:
-            with open(TOML_PATH, "rb") as f:
-                toml_data = tomllib.load(f)
-                config = toml_data.get("settings", {})  # flatten from [settings]
-            print(f"{emoji('⚙️', '[cfg]')} [green]Loaded configuration from .chroniq.toml[/green]")
-        except Exception as e:
-            print(f"{emoji('❌', '[error]')} [red]Error parsing .chroniq.toml:[/red] {e}")
+    try:
+        with open(config_path, "rb") as f:
+            parsed = tomllib.load(f)
 
-    elif JSON_PATH.exists():
-        try:
-            with open(JSON_PATH, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            print(f"{emoji('⚙️', '[cfg]')} [green]Loaded configuration from .chroniqrc.json[/green]")
-        except Exception as e:
-            print(f"{emoji('❌', '[error]')} [red]Error parsing .chroniqrc.json:[/red] {e}")
+        config = DEFAULT_CONFIG.copy()
+        config = deep_merge(config, parsed)
 
-    return config
+        profile_name = parsed.get("active_profile", "default")
+        profiles = parsed.get("profile", {})
+        if not isinstance(profiles, dict):
+            profiles = {}
 
+        profile_data = profiles.get(profile_name, {})
+        if not isinstance(profile_data, dict):
+            profile_data = {}
 
-# 🧪 Example .chroniq.toml:
-# [settings]
-# default_bump = "patch"
-# silent = false
-# version_file = "version.txt"
-# changelog_file = "CHANGELOG.md"
+        config = deep_merge(config, profile_data)
+        config["active_profile"] = profile_name
+
+        system_log.info(f"Loaded configuration using profile '{profile_name}'")
+        return config
+
+    except Exception as e:
+        system_log.error(f"Failed to load .chroniq.toml: {e}")
+        return DEFAULT_CONFIG.copy()
+
+def update_config_value(key, value, config_path=CONFIG_PATH):
+    """
+    Update a value in the .chroniq.toml configuration file.
+    Supports nested keys using dot notation (e.g., 'profile.dev.silent').
+    """
+    existing = load_config(config_path)
+
+    parts = key.split(".")
+    current = existing
+
+    for part in parts[:-1]:
+        if part not in current or not isinstance(current[part], dict):
+            current[part] = {}
+        current = current[part]
+
+    val = value
+    if isinstance(value, str):
+        if value.lower() in ["true", "false"]:
+            val = value.lower() == "true"
+        elif value.isdigit():
+            val = int(value)
+
+    current[parts[-1]] = val
+
+    try:
+        with open(config_path, "wb") as f:
+            f.write(tomli_w.dumps(existing).encode("utf-8"))
+
+        activity_log.info(f"Updated config key '{key}' to '{val}'")
+        return True
+
+    except Exception as e:
+        system_log.error(f"Error updating config value '{key}' → '{value}': {e}")
+        return False

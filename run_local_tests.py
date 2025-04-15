@@ -1,17 +1,28 @@
 import subprocess
 import tempfile
 import unittest
+import argparse
 
 from pathlib import Path
 from textwrap import dedent
 from rich.console import Console
 
+# Argument parser lets you run the script with --smoke to skip unit tests
+parser = argparse.ArgumentParser()
+parser.add_argument("--smoke", action="store_true", help="Only run smoke tests.")
+args = parser.parse_args()
+
+# A list of Chroniq CLI commands with optional simulated input
 COMMANDS = [
+    # Initialize version.txt and CHANGELOG.md
     ("Init", ["chroniq", "init"]),
+    # Bump patch, minor, and major (skipping changelog input with 'n\n')
     ("Bump Patch", ["chroniq", "bump", "patch"], "n\n"),
     ("Bump Minor", ["chroniq", "bump", "minor"], "n\n"),
     ("Bump Major", ["chroniq", "bump", "major"], "n\n"),
+    # Bump patch again, this time accepting changelog with 'y\n'
     ("Bump with Changelog", ["chroniq", "bump", "patch"], "y\nAdded via test script\n"),
+    # Display version and log, then reset to clean state
     ("Show Version", ["chroniq", "version"]),
     ("Show Log", ["chroniq", "log", "--lines", "10"]),
     ("Reset", ["chroniq", "reset"]),
@@ -46,11 +57,27 @@ def run_command(name, args, input_text=None, cwd=None):
         console.print(f"[bold red]✘ Failed:[/bold red] {args}")
         console.print(e.stderr.strip() or str(e))
 
-def run_all():
+def run_smoke_only():
     """
-    Run all Chroniq smoke tests followed by Python unit tests.
+    Run only the smoke tests (CLI-level commands using subprocess).
+    These tests simulate typical user workflows using an isolated temp folder.
+    """
+    print("\n\n🏁 Starting Chroniq Smoke Test\n" + "="*40)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"📂 Using temporary project directory: {tmpdir}\n")
+        cwd = Path(tmpdir)
 
-    This method ensures both CLI-level behavior and internal logic are working as expected.
+        for name, cmd, *input_text in COMMANDS:
+            run_command(name, cmd, input_text[0] if input_text else None, cwd=cwd)
+
+    print("\n✅\033[1m All smoke tests completed.\033[0m\n")
+
+def run_smoke_and_unit():
+    """
+    Run both smoke tests and full unit test suite.
+
+    - Smoke tests: simulate full CLI interaction
+    - Unit tests: validate internal logic with unittest discovery
     """
     print("\n\n🏁 Starting Chroniq Smoke Test\n" + "="*40)
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,4 +101,8 @@ def run_all():
 
 
 if __name__ == "__main__":
-    run_all()
+    # If --smoke flag is passed, skip unit tests
+    if args.smoke:
+        run_smoke_only()
+    else:
+        run_smoke_and_unit()

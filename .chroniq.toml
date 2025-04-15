@@ -1,0 +1,25 @@
+default_bump = "minor"
+silent = true
+prompt_for_changelog = true
+strict = false
+emoji_fallback = true
+version_file = "version.txt"
+changelog_file = "CHANGELOG.md"
+log_dir = "data/logs"
+activity_log = "data/logs/activity.log"
+auto_increment_prerelease = true
+require_changelog_heading = false
+
+[profile.default]
+default_bump = "minor"
+silent = true
+strict = false
+
+[profile.release]
+default_bump = "minor"
+silent = true
+strict = true
+
+[profile.dev]
+default_bump = "patch"
+prompt_for_changelog = false

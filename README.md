@@ -5,26 +5,47 @@
 ![Build](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
 ![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red?style=flat-square)
 
-**Chroniq** is a lightweight, developer-friendly CLI tool that helps you manage project versions and changelogs using Semantic Versioning.  
-Designed for simplicity, cross-platform support, and a smooth developer workflow.
+**Chroniq** is a privacy-first, developer-friendly CLI tool for managing your project's semantic versions and changelogs.  
+Built with offline-first principles and human-readable feedback, it keeps your versioning accurate and your history clear.
 
-> _“Because your version deserves a voice — and your changelog deserves style.”_
-
-
-> Chroniq is your intelligent, beginner-friendly versioning and changelog assistant. Built with ❤️ for developers who want clean version control without the headache.
+> _"Because versioning shouldn't feel like a chore."_ 💡
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
-- 🔖 **Semantic Versioning (SemVer)** out of the box (patch, minor, major)
-- 📝 **Markdown changelog** management with timestamped entries
-- 💬 **Interactive CLI** with rich prompts and emoji feedback
-- ⚙️ **Custom config** via `.chroniq.toml` or `.chroniqrc.json`
-- 🔧 **Safe version bumping** with optional changelog entry
-- ✅ **100% test coverage** — built and tested extensivley
+- 📌 Semantic versioning with `MAJOR.MINOR.PATCH[-PRERELEASE]`
+- 🔁 Safe changelog entries with interactive prompts
+- 📦 Pre-release support via `--pre` (e.g. `alpha.1`, `beta`, `rc.2`)
+- 🧪 Full test suite with smoke + unit tests
+- 🧠 Human-friendly output using `rich`
+- ⚙️ Configurable defaults via `.chroniq.toml` or `.chroniqrc.json`
+- 🔐 No tracking, no remote APIs — runs fully offline
 
 ---
+
+## 🧰 Commands
+
+| Command                | Description                                                  |
+|------------------------|--------------------------------------------------------------|
+| `chroniq init`         | Initialize `version.txt` and `CHANGELOG.md`                 |
+| `chroniq bump [level]` | Bump version by patch, minor, or major                      |
+| `chroniq bump --pre`   | Bump pre-release (e.g. `alpha.1 → alpha.2`)                |
+| `chroniq log`          | Show recent entries from the changelog                     |
+| `chroniq version`      | Show current version                                       |
+| `chroniq reset`        | Delete version + changelog files (use with caution)        |
+
+---
+
+## ✏️ Examples
+
+```bash
+chroniq bump patch             # Bumps 1.0.0 → 1.0.1
+chroniq bump minor             # Bumps 1.0.1 → 1.1.0
+chroniq bump major             # Bumps 1.1.0 → 2.0.0
+chroniq bump --pre alpha       # Sets pre-release to 2.0.0-alpha.1
+chroniq bump --pre beta        # Sets pre-release to 2.0.0-beta.1
+chroniq bump --pre rc          # Sets pre-release to 2.0.0-rc.1
 
 ## 🚀 Quickstart
 
@@ -44,17 +65,6 @@ chroniq version
 # See latest changelog entries
 chroniq log --lines 5
 ```
-
----
-
-## 🛠 CLI Commands
-
-| Command               | Description                              |
-|----------------------|------------------------------------------|
-| `chroniq init`       | Creates `version.txt` and `CHANGELOG.md` |
-| `chroniq bump [lvl]` | Bumps version and prompts for changelog  |
-| `chroniq version`    | Shows current version                    |
-| `chroniq log`        | Displays recent changelog entries        |
 
 ---
 
@@ -82,6 +92,9 @@ Or use `.chroniqrc.json`:
 
 ```bash
 pytest -v
+```
+```bash
+python run_local_tests.py
 ```
 
 ---
