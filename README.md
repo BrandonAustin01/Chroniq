@@ -5,6 +5,14 @@
 ![Build](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
 ![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red?style=flat-square)
 
+![PyPI Version](https://img.shields.io/pypi/v/chroniq?label=PyPI&color=brightgreen&style=flat-square)
+![Python Version](https://img.shields.io/pypi/pyversions/chroniq?style=flat-square)
+![License](https://img.shields.io/pypi/l/chroniq?style=flat-square)
+![Downloads](https://img.shields.io/pypi/dm/chroniq?label=Downloads&style=flat-square)
+![Build](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)
+![Stability](https://img.shields.io/badge/stability-stable-blue?style=flat-square)
+
+
 **Chroniq** is a privacy-first, developer-friendly CLI tool for managing your project's semantic versions and changelogs.  
 Built with offline-first principles and human-readable feedback, it keeps your versioning accurate and your history clear.
 
