@@ -1,9 +1,20 @@
 # 🔮 Chroniq — Smart Versioning & Changelog CLI
 
-![License](https://img.shields.io/github/license/BrandonAustin01/chroniq?style=flat-square)
-![Python Version](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square)
-![Build](https://img.shields.io/badge/tests-passing-brightgreen?style=flat-square)
-![Made with ❤️](https://img.shields.io/badge/made%20with-%E2%9D%A4-red?style=flat-square)
+<!-- Core Info -->
+![PyPI](https://img.shields.io/pypi/v/chroniq?label=PyPI&logo=pypi&logoColor=white&style=for-the-badge)
+![Python](https://img.shields.io/pypi/pyversions/chroniq?label=Python&logo=python&logoColor=white&style=for-the-badge)
+![License](https://img.shields.io/github/license/BrandonAustin01/chroniq?style=for-the-badge&logo=open-source-initiative&logoColor=white)
+![Downloads](https://img.shields.io/pypi/dm/chroniq?label=Downloads&logo=download&style=for-the-badge)
+
+<!-- Dev & Stability -->
+![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-100%25%20passing-success?style=for-the-badge&logo=pytest&logoColor=white)
+![Stability](https://img.shields.io/badge/stability-stable-blue?style=for-the-badge)
+
+<!-- Vibes -->
+![Made With](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red?style=for-the-badge)
+![Chroniq Vibe](https://img.shields.io/badge/dev-first-black?style=for-the-badge)
+
 
 **Chroniq** is your local-first, developer-friendly version manager + changelog tracker.  
 It brings semantic versioning, rollback safety, and interactive changelog support — all from your terminal.
