@@ -1,8 +1,8 @@
 default_bump = "minor"
 silent = true
 prompt_for_changelog = true
-strict = false
-emoji_fallback = true
+strict = true
+emoji_fallback = false
 version_file = "version.txt"
 changelog_file = "CHANGELOG.md"
 log_dir = "data/logs"
@@ -21,5 +21,5 @@ silent = true
 strict = true
 
 [profile.dev]
-default_bump = "patch"
+default_bump = "minor"
 prompt_for_changelog = false

@@ -239,18 +239,15 @@ def config_show():
     """
     Display the currently loaded Chroniq configuration, including active profile.
     """
-    from chroniq.config import load_config
-
     try:
-        config = load_config()
+        config_data, active_profile = load_config()
 
         # Extract and show profile info
-        profile = config.get("active_profile", "default")
-        console.print(f"{emoji('📂', '[profile]')} [bold]Active Profile:[/bold] {profile}")
+        console.print(f"{emoji('📂', '[profile]')} [bold]Active Profile:[/bold] {active_profile}")
 
         # Pretty print config dictionary
         console.print("\n[bold cyan]Loaded Configuration:[/bold cyan]")
-        for key, value in config.items():
+        for key, value in config_data.items():
             if isinstance(value, dict):
                 console.print(f"\n[blue]{key}[/blue]:")
                 for sub_key, sub_value in value.items():
@@ -260,6 +257,7 @@ def config_show():
 
     except Exception as e:
         console.print(f"{emoji('❌', '[error]')} [red]Failed to load configuration:[/red] {e}")
+
 
 @main.command("changelog-preview")
 @click.option("--message", "-m", multiple=True, help="Changelog message(s) to preview. Supports multiple.")
@@ -401,20 +399,19 @@ def config_list(profile, show_all, as_json, as_toml):
     all_keys = set(DEFAULT_CONFIG.keys())
 
     if show_all:
-        # 🔍 Display all profiles
-        all_profiles = config_data.get("profiles", {}).keys()
-        for prof in sorted(all_profiles):
+        # 🔍 Display all profiles from "profile" block
+        profile_dict = config_data.get("profile", {})
+        for prof in sorted(profile_dict):
             prof_table = Table(title=f"📂 Profile: {prof}")
             prof_table.add_column("Key", style="cyan")
             prof_table.add_column("Value", style="green")
             prof_table.add_column("Source", style="dim")
 
-            for key in sorted(DEFAULT_CONFIG.keys()):
-                result = get_config_value(key, config_data, prof)
-                if result:
-                    prof_table.add_row(key, str(result['value']), result['origin'])
+            for key, val in profile_dict[prof].items():
+                prof_table.add_row(key, str(val), "profile")
             console.print(prof_table)
         return
+
 
     # 👇 Default: Show only current profile
     for key in sorted(all_keys):
@@ -423,6 +420,82 @@ def config_list(profile, show_all, as_json, as_toml):
             table.add_row(key, str(result["value"]), result["origin"])
 
     console.print(table)
+
+@config.command("set")
+@click.option("--key", help="Configuration key to set (optional when using --json).")
+@click.option("--value", help="Value for the configuration key (optional when using --json).")
+@click.option("--json", "json_data", help="Set multiple keys using raw JSON.")
+@click.option("--profile", help="Target a specific profile (e.g., dev, release).")
+def config_set(key, value, json_data, profile):
+    """
+    Set configuration values in .chroniq.toml
+
+    Examples:
+        chroniq config set --key silent --value true
+        chroniq config set --key default_bump --value minor --profile dev
+        chroniq config set --json '{"silent": false, "emoji_fallback": true}'
+    """
+    from chroniq.config import CONFIG_PATH
+    import json
+    import tomli_w
+    import tomllib
+
+    try:
+        # 🧱 Mixed-mode protection
+        if json_data and (key or value):
+            console.print(f"{emoji('❌')} [red]Cannot mix --json with --key or --value.[/red]")
+            return
+
+        if json_data and not json_data.strip().startswith("{"):
+            console.print(f"{emoji('❌')} [red]Invalid JSON input. It must start with '{{'[/red]")
+            return
+
+        config_dict = {}
+        if CONFIG_PATH.exists():
+            with open(CONFIG_PATH, "rb") as f:
+                config_dict = tomllib.load(f)
+
+        updates = {}
+
+        if json_data:
+            try:
+                updates = json.loads(json_data)
+            except json.JSONDecodeError as e:
+                console.print(f"{emoji('❌')} [red]Invalid JSON:[/red] {e}")
+                return
+        elif key and value:
+            updates = {key: value}
+        else:
+            console.print(f"{emoji('⚠️')} [yellow]Provide either --key + --value or --json data.[/yellow]")
+            return
+
+        for raw_key, raw_val in updates.items():
+            scoped_key = f"profile.{profile}.{raw_key}" if profile and not raw_key.startswith("profile.") else raw_key
+            parts = scoped_key.split(".")
+            current = config_dict
+
+            for part in parts[:-1]:
+                if part not in current or not isinstance(current[part], dict):
+                    current[part] = {}
+                current = current[part]
+
+            if isinstance(raw_val, str):
+                if raw_val.lower() in ["true", "false"]:
+                    raw_val = raw_val.lower() == "true"
+                elif raw_val.isdigit():
+                    raw_val = int(raw_val)
+
+            current[parts[-1]] = raw_val
+            console.print(f"{emoji('🛠️')} Set [bold]{scoped_key}[/bold] → [green]{raw_val}[/green]")
+
+        with open(CONFIG_PATH, "wb") as f:
+            f.write(tomli_w.dumps(config_dict).encode("utf-8"))
+
+        activity_log.info(f"Updated config via CLI set: {list(updates.keys())}")
+
+    except Exception as e:
+        console.print(f"{emoji('❌')} [red]Failed to update config:[/red] {e}")
+        system_log.error(f"Config set failed: {e}")
 
 main.add_command(config)
 
