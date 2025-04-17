@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich import print
 from chroniq.core import SemVer
 from chroniq.changelog import add_entry
-from chroniq.config import load_config, CONFIG_PATH, update_config_value
+from chroniq.config import load_config, CONFIG_PATH, update_config_value, get_config_value
 from chroniq.utils import emoji
 from chroniq.logger import system_log, activity_log
 from chroniq.rollback import perform_rollback
@@ -20,6 +20,12 @@ console = Console(file=sys.stdout)
 # Default file paths for version and changelog
 VERSION_FILE = Path("version.txt")
 CHANGELOG_FILE = Path("CHANGELOG.md")
+
+# 🧱 Define the config command group
+@click.group()
+def config():
+    """Manage Chroniq configuration settings."""
+    pass
 
 @click.group()
 def main():
@@ -208,70 +214,6 @@ def reset():
         console.print(f"{emoji('❌', '[error]')} [bold red]Failed to reset files:[/bold red] {e}")
         system_log.error(f"Version bump failed: {e}")
 
-import tomli_w  # Safe TOML writer
-
-@main.command("config")
-@click.argument("action", type=click.Choice(["set"]))
-@click.argument("key")
-@click.argument("value")
-@click.option("--profile", help="Optional profile scope (e.g. dev, release)")
-def config_set(action, key, value, profile):
-    """
-    Update Chroniq configuration values in .chroniq.toml
-
-    Examples:
-        chroniq config set silent true
-        chroniq config set default_bump minor
-        chroniq config set silent false --profile dev
-    """
-    from chroniq.config import CONFIG_PATH
-    import tomllib
-    import tomli_w
-
-    try:
-        # Load existing config or use empty fallback
-        existing = {}
-        if CONFIG_PATH.exists():
-            with open(CONFIG_PATH, "rb") as f:
-                existing = tomllib.load(f)
-
-        # 🧠 Apply profile logic: prefix key with profile if needed
-        if profile and not key.startswith("profile."):
-            key = f"profile.{profile}.{key}"
-
-        # 🧩 Split key using dot notation
-        parts = key.split(".")
-        current = existing
-
-        # 🔁 Traverse or build nested dictionaries
-        for part in parts[:-1]:
-            if part not in current or not isinstance(current[part], dict):
-                current[part] = {}
-            current = current[part]
-
-        # 🔄 Auto-convert value into bool or int if applicable
-        val = value
-        if value.lower() in ["true", "false"]:
-            val = value.lower() == "true"
-        elif value.isdigit():
-            val = int(value)
-
-        # ✅ Set the new value
-        current[parts[-1]] = val
-
-        # 💾 Save updated config
-        with open(CONFIG_PATH, "wb") as f:
-            f.write(tomli_w.dumps(existing).encode("utf-8"))
-
-        console.print(f"{emoji('🛠️', '[config]')} [green]Updated[/green] '[bold]{key}[/bold]' → [bold]{val}[/bold] in .chroniq.toml")
-        activity_log.info(f"CLI config set: {key} = {val}")  # ✅
-
-    except Exception as e:
-        console.print(f"{emoji('❌', '[error]')} [red]Failed to update configuration:[/red] {e}")
-        system_log.error(f"Version bump failed: {e}")
-
-
-
 @main.command()
 @click.option("--strict", is_flag=True, help="Enable strict mode for additional checks.")
 def audit(strict):
@@ -383,6 +325,106 @@ def rollback(rollback_version, yes):
     """
     perform_rollback(rollback_version=rollback_version, yes=yes)
 
+# 🧠 Define the `get` subcommand
+@config.command("get")
+@click.argument("key", required=True)
+@click.option("--profile", help="Profile to read from (default: active profile)")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--toml", "as_toml", is_flag=True, help="Output as TOML")
+def config_get(key, profile, as_json, as_toml):
+    """
+    Get a configuration value by key with fallback awareness.
+    """
+    config_data, active_profile = load_config(profile)
+    result = get_config_value(key, config_data, active_profile)
+
+    if result is None:
+        console.print(f"❌ Config key not found: '{key}'", style="bold red")
+        return
+
+    value, origin = result["value"], result["origin"]
+
+    if as_json:
+        import json
+        console.print_json(json.dumps({key: value}))
+    elif as_toml:
+        import tomli_w
+        click.echo(tomli_w.dumps({key: value}))
+    else:
+        console.print(Panel.fit(
+            f"[bold yellow]{key}[/bold yellow] → [green]{value}[/green]\\n[dim]Source: {origin}[/dim]",
+            title="[ config:get ]",
+            border_style="cyan"
+        ))
+
+@config.command("list")
+@click.option("--profile", help="Show values from a specific profile")
+@click.option("--all", "show_all", is_flag=True, help="Show all profiles and values")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+@click.option("--toml", "as_toml", is_flag=True, help="Output as TOML")
+def config_list(profile, show_all, as_json, as_toml):
+    """
+    List current Chroniq configuration values with origin awareness.
+    """
+    config_data, active_profile = load_config(profile)
+    target_profile = profile or active_profile
+
+    from chroniq.defaults import DEFAULT_CONFIG
+    import json
+
+    merged = {}
+
+    # Helper to resolve config value with fallback logic
+    def resolve_value(key):
+        result = get_config_value(key, config_data, target_profile)
+        return result["value"] if result else None
+
+    if as_json:
+        merged = {key: resolve_value(key) for key in DEFAULT_CONFIG}
+        click.echo(json.dumps(merged, indent=2))
+        return
+
+    if as_toml:
+        import tomli_w
+        merged = {key: resolve_value(key) for key in DEFAULT_CONFIG}
+        click.echo(tomli_w.dumps(merged))
+        return
+
+    from rich.table import Table
+
+    # 🔍 Build config output table
+    table = Table(title=f"📂 Config for Profile: {target_profile}")
+    table.add_column("Key", style="cyan", no_wrap=True)
+    table.add_column("Value", style="green")
+    table.add_column("Source", style="dim")
+
+    all_keys = set(DEFAULT_CONFIG.keys())
+
+    if show_all:
+        # 🔍 Display all profiles
+        all_profiles = config_data.get("profiles", {}).keys()
+        for prof in sorted(all_profiles):
+            prof_table = Table(title=f"📂 Profile: {prof}")
+            prof_table.add_column("Key", style="cyan")
+            prof_table.add_column("Value", style="green")
+            prof_table.add_column("Source", style="dim")
+
+            for key in sorted(DEFAULT_CONFIG.keys()):
+                result = get_config_value(key, config_data, prof)
+                if result:
+                    prof_table.add_row(key, str(result['value']), result['origin'])
+            console.print(prof_table)
+        return
+
+    # 👇 Default: Show only current profile
+    for key in sorted(all_keys):
+        result = get_config_value(key, config_data, target_profile)
+        if result:
+            table.add_row(key, str(result["value"]), result["origin"])
+
+    console.print(table)
+
+main.add_command(config)
 
 if __name__ == "__main__":
     main()
