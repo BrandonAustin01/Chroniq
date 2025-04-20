@@ -27,8 +27,17 @@ def config():
     """Manage Chroniq configuration settings."""
     pass
 
-@click.group()
-def main():
+# ✅ Update main() to accept --config as a global option
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(),
+    default=None,
+    help="Custom path to .chroniq.toml"
+)
+@click.pass_context
+def main(ctx, config_path):
     """
     Chroniq – Smart versioning and changelog management CLI.
 
@@ -36,7 +45,14 @@ def main():
     using Semantic Versioning (SemVer). You can bump versions, initialize config files,
     and display recent changelog entries with human-friendly CLI feedback.
     """
-    system_log.info("Chroniq CLI initialized.")  # ✅ Log CLI boot
+    # 🧠 Ensure we have a dict to stash global config for subcommands
+    ctx.ensure_object(dict)
+
+    # 💾 Save --config value into the context object
+    ctx.obj["config_path"] = config_path or CONFIG_PATH
+
+    # 📝 Log and display initialization
+    system_log.info("Chroniq CLI initialized.")
     console.print(f"[bold magenta]{emoji('🔮', '[start]')} Chroniq CLI initialized.[/bold magenta]")
 
 @main.command()
@@ -52,7 +68,7 @@ def bump(level, pre, silent):
         pre            → Auto-increment prerelease (e.g., alpha.1 → alpha.2)
         --pre alpha.1  → Explicitly set a prerelease label
     """
-    config = load_config()
+    config, _ = load_config()
     silent_mode = silent or config.get("silent", False)
 
     # Use CLI arg, fallback to config value, then default to "patch"
@@ -225,7 +241,7 @@ def audit(strict):
     from chroniq.audit import run_audit
 
     try:
-        config = load_config()
+        config, _ = load_config()
         strict_mode = strict or config.get("strict", False)
 
         system_log.info(f"Running audit (strict={strict_mode})")  # ✅
@@ -233,31 +249,6 @@ def audit(strict):
 
     except Exception as e:
         console.print(f"{emoji('❌', '[error]')} [bold red]Audit failed:[/bold red] {e}")
-
-@main.command("config-show")
-def config_show():
-    """
-    Display the currently loaded Chroniq configuration, including active profile.
-    """
-    try:
-        config_data, active_profile = load_config()
-
-        # Extract and show profile info
-        console.print(f"{emoji('📂', '[profile]')} [bold]Active Profile:[/bold] {active_profile}")
-
-        # Pretty print config dictionary
-        console.print("\n[bold cyan]Loaded Configuration:[/bold cyan]")
-        for key, value in config_data.items():
-            if isinstance(value, dict):
-                console.print(f"\n[blue]{key}[/blue]:")
-                for sub_key, sub_value in value.items():
-                    console.print(f"  [dim]{sub_key}[/dim] = {sub_value}")
-            else:
-                console.print(f"{key} = {value}")
-
-    except Exception as e:
-        console.print(f"{emoji('❌', '[error]')} [red]Failed to load configuration:[/red] {e}")
-
 
 @main.command("changelog-preview")
 @click.option("--message", "-m", multiple=True, help="Changelog message(s) to preview. Supports multiple.")
@@ -322,6 +313,31 @@ def rollback(rollback_version, yes):
         chroniq rollback --yes
     """
     perform_rollback(rollback_version=rollback_version, yes=yes)
+
+@main.command("config-show")
+def config_show():
+    """
+    Display the currently loaded Chroniq configuration, including active profile.
+    """
+    try:
+        config_data, active_profile = load_config()
+
+        # Extract and show profile info
+        console.print(f"{emoji('📂', '[profile]')} [bold]Active Profile:[/bold] {active_profile}")
+
+        # Pretty print config dictionary
+        console.print("\n[bold cyan]Loaded Configuration:[/bold cyan]")
+        for key, value in config_data.items():
+            if isinstance(value, dict):
+                console.print(f"\n[blue]{key}[/blue]:")
+                for sub_key, sub_value in value.items():
+                    console.print(f"  [dim]{sub_key}[/dim] = {sub_value}")
+            else:
+                console.print(f"{key} = {value}")
+
+    except Exception as e:
+        console.print(f"{emoji('❌', '[error]')} [red]Failed to load configuration:[/red] {e}")
+
 
 # 🧠 Define the `get` subcommand
 @config.command("get")
@@ -422,11 +438,12 @@ def config_list(profile, show_all, as_json, as_toml):
     console.print(table)
 
 @config.command("set")
-@click.option("--key", help="Configuration key to set (optional when using --json).")
-@click.option("--value", help="Value for the configuration key (optional when using --json).")
+@click.option("--key", help="Configuration key to set")
+@click.option("--value", help="Value to assign to the key")
 @click.option("--json", "json_data", help="Set multiple keys using raw JSON.")
-@click.option("--profile", help="Target a specific profile (e.g., dev, release).")
+@click.option("--profile", help="Target a specific profile (e.g., dev, release)")
 def config_set(key, value, json_data, profile):
+
     """
     Set configuration values in .chroniq.toml
 
@@ -496,6 +513,74 @@ def config_set(key, value, json_data, profile):
     except Exception as e:
         console.print(f"{emoji('❌')} [red]Failed to update config:[/red] {e}")
         system_log.error(f"Config set failed: {e}")
+
+@config.command("delete")
+@click.argument("keys", nargs=-1, required=True)
+@click.option("--profile", help="Target a specific profile (e.g., dev, release)")
+@click.option("--yes", is_flag=True, help="Skip confirmation prompts")
+@click.pass_context
+def config_delete(ctx, keys, profile, yes):
+    """
+    Delete one or more configuration keys.
+
+    Examples:
+        chroniq config delete silent
+        chroniq config delete silent strict --profile dev
+        chroniq config delete silent --yes
+    """
+    import tomli_w
+    import tomllib
+    from pathlib import Path
+    config_path = Path(ctx.obj.get("config_path", ".chroniq.toml"))
+
+    try:
+        if not config_path.exists():
+            console.print(f"{emoji('❌')} [red]No configuration file found to update.[/red]")
+            return
+
+        with open(config_path, "rb") as f:
+            config_dict = tomllib.load(f)
+
+        deleted = []
+        not_found = []
+
+        for key in keys:
+            scoped_key = f"profile.{profile}.{key}" if profile else key
+            parts = scoped_key.split(".")
+            current = config_dict
+
+            # Traverse to parent
+            for part in parts[:-1]:
+                if part not in current or not isinstance(current[part], dict):
+                    current = None
+                    break
+                current = current[part]
+
+            if current is not None and parts[-1] in current:
+                if not yes:
+                    if not click.confirm(f"Delete [bold]{scoped_key}[/bold]?", default=False):
+                        continue
+
+                del current[parts[-1]]
+                deleted.append(scoped_key)
+            else:
+                not_found.append(scoped_key)
+
+        if deleted:
+            with open(config_path, "wb") as f:
+                f.write(tomli_w.dumps(config_dict).encode("utf-8"))
+            for key in deleted:
+                console.print(f"{emoji('🗑️')} Deleted [bold red]{key}[/bold red]")
+            activity_log.info(f"Deleted config keys: {deleted}")
+
+        if not_found:
+            for key in not_found:
+                console.print(f"{emoji('❓')} [yellow]Key not found:[/yellow] {key}")
+
+    except Exception as e:
+        console.print(f"{emoji('❌')} [red]Failed to delete config key(s):[/red] {e}")
+        system_log.error(f"Config delete failed: {e}")
+
 
 main.add_command(config)
 

@@ -1,30 +1,42 @@
 import unittest
 import tempfile
+import shutil
 from pathlib import Path
-from chroniq.config import load_config, update_config_value
+from click.testing import CliRunner
+
+from chroniq.config import load_config
+from chroniq.cli import main
 
 class TestChroniqConfigSet(unittest.TestCase):
+    """
+    ✅ Tests for 'chroniq config set' to ensure values are correctly written to a custom config file.
+    """
+
+    def setUp(self):
+        # 🧪 Create a temporary directory and config path for isolation
+        self.tmpdir = tempfile.mkdtemp()
+        self.config_path = Path(self.tmpdir) / ".chroniq.toml"
+
+    def tearDown(self):
+        # 🧼 Clean up the temp directory after test
+        shutil.rmtree(self.tmpdir)
 
     def test_set_config_value(self):
-        """Test setting and saving configuration values."""
+        """
+        🧪 Verifies that setting a config key writes it properly to the .chroniq.toml file.
+        """
+        runner = CliRunner()
 
-        # Create a temporary directory to simulate the config file path
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            config_path = Path(tmp_dir) / ".chroniq.toml"
+        # ⚙️ Use --config flag to direct the CLI to our isolated config path
+        result = runner.invoke(
+            main,
+            ["--config", str(self.config_path), "config", "set", "silent", "true"]
+        )
 
-            # Simulate writing the .chroniq.toml file with initial data (fixed indentation)
-            config_data = """
-default_bump = "patch"
-silent = false
-"""
-            with open(config_path, "w") as f:
-                f.write(config_data)
-            
-            # Set the 'silent' value to 'true'
-            update_config_value("silent", "true", config_path)
+        # ✅ CLI should succeed with exit code 0
+        self.assertEqual(result.exit_code, 0, msg=f"Command failed: {result.output}")
 
-            # Reload the config to check if the change persisted
-            config = load_config(config_path)
-
-            # Assert that the 'silent' value has been updated correctly
-            self.assertEqual(config["silent"], True)
+        # 📖 Verify that 'silent' is saved and True
+        config_data, _ = load_config(self.config_path)
+        self.assertIn("silent", config_data)
+        self.assertTrue(config_data["silent"])

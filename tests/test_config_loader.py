@@ -1,61 +1,81 @@
 import unittest
 import tempfile
 from pathlib import Path
-
-from chroniq.config import load_config, DEFAULT_CONFIG
+from chroniq.config import load_config
+from chroniq.defaults import DEFAULT_CONFIG  # ← live default import
 
 class TestChroniqConfigLoader(unittest.TestCase):
 
     def test_fallback_when_missing(self):
-        """Returns default config when .chroniq.toml doesn't exist."""
-        config = load_config(Path("nonexistent.toml"))
-        self.assertEqual(config, DEFAULT_CONFIG)
+        """
+        ✅ Should return DEFAULT_CONFIG if the config file doesn't exist.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_path = Path(tmpdir) / ".no_config.toml"
+
+            # Load config using a path we know doesn't exist
+            config, profile = load_config(path=fake_path)
+
+            # ✅ Assert fallback values match DEFAULT_CONFIG
+            for key, expected_val in DEFAULT_CONFIG.items():
+                actual_val = config.get(key)
+                self.assertEqual(
+                    actual_val,
+                    expected_val,
+                    f"Mismatch on fallback key: {key} → expected {expected_val}, got {actual_val}"
+                )
+
+            # ✅ Assert fallback profile is returned
+            self.assertEqual(profile, "default")
 
     def test_loads_toml_and_applies_profile(self):
-        """Loads .chroniq.toml with [profile.dev] and merges it properly."""
+        """
+        🧪 Loads .chroniq.toml with [profile.dev] and merges it properly.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / ".chroniq.toml"
 
-            # Write TOML using standard string, then encode as UTF-8
             EXAMPLE_TOML = """
             silent = true
             strict = true
             emoji_fallback = false
-            changelog_path = "logs/CHANGELOG.md"
-            version_path = "meta/version.txt"
+            changelog_file = "logs/CHANGELOG.md"
+            version_file = "meta/version.txt"
             active_profile = "dev"
 
             [profile.dev]
             default_bump = "major"
             silent = false
             """
+
             config_path.write_text(EXAMPLE_TOML.strip(), encoding="utf-8")
+            config, profile = load_config(config_path)
 
-            config = load_config(config_path)
-
-            # ✅ From [profile.dev] override
+            # 🧪 Values overridden by [profile.dev]
             self.assertEqual(config["default_bump"], "major")
             self.assertEqual(config["silent"], False)
 
-            # ✅ From base-level keys
+            # ✅ Values from global section
             self.assertEqual(config["strict"], True)
             self.assertEqual(config["emoji_fallback"], False)
-            self.assertEqual(config["changelog_path"], "logs/CHANGELOG.md")
-            self.assertEqual(config["version_path"], "meta/version.txt")
-            self.assertEqual(config["active_profile"], "dev")  # <- correct usage
+            self.assertEqual(config["changelog_file"], "logs/CHANGELOG.md")
+            self.assertEqual(config["version_file"], "meta/version.txt")
 
+            # ✅ Profile returned correctly
+            self.assertEqual(profile, "dev")
 
     def test_partial_config_merges_defaults(self):
-        """Partial config files still apply default fallbacks."""
+        """
+        Partial config files still apply default fallbacks.
+        """
         with tempfile.TemporaryDirectory() as tmp:
-            partial_toml = b'default_bump = "minor"\n'
             config_path = Path(tmp) / ".chroniq.toml"
-            config_path.write_bytes(partial_toml)
+            config_path.write_text('default_bump = "minor"\n', encoding="utf-8")
 
-            config = load_config(config_path)
+            config, _ = load_config(config_path)
             self.assertEqual(config["default_bump"], "minor")
-            self.assertEqual(config["silent"], False)  # fallback
-            self.assertEqual(config["strict"], False)  # fallback
+            self.assertEqual(config["silent"], DEFAULT_CONFIG["silent"])
+            self.assertEqual(config["strict"], DEFAULT_CONFIG["strict"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,20 +10,6 @@ from chroniq.logger import system_log, activity_log  # ✅ add this
 # Default config file path (can later support multiple tiers)
 CONFIG_PATH = Path(".chroniq.toml")
 
-# Default fallback config if no .chroniq.toml is found or fails to load
-DEFAULT_CONFIG = {
-    "default_bump": "patch",
-    "silent": False,
-    "strict": False,
-    "emoji_fallback": True,
-    "version_file": "version.txt",
-    "changelog_file": "CHANGELOG.md",
-    "log_dir": "data/logs",
-    "activity_log": "data/logs/activity.log",
-    "auto_increment_prerelease": True,
-    "require_changelog_heading": False,
-}
-
 def deep_merge(base, update):
     """Recursively merges dictionaries, with 'update' taking precedence."""
     for key, value in update.items():
@@ -33,41 +19,47 @@ def deep_merge(base, update):
             base[key] = value
     return base
 
-def load_config(config_path: Path = CONFIG_PATH) -> dict:
+def load_config(profile: str = None, path: Path = None):
     """
-    Load and parse the Chroniq configuration from a TOML file.
-    Includes safe fallback to default config and strict profile handling.
+    Load the Chroniq configuration from .chroniq.toml.
+    Returns a tuple of (merged_config: dict, active_profile: str)
     """
-    config_path = CONFIG_PATH or Path(".chroniq.toml")  # 🧠 extra fallback
+    from chroniq.logger import system_log
+    from chroniq.defaults import DEFAULT_CONFIG
+
+    config_path = path or CONFIG_PATH
+
+    # 🧱 Start with full default config
+    merged_config = DEFAULT_CONFIG.copy()
 
     if not config_path.exists():
-        return DEFAULT_CONFIG.copy(), "default"
+        return merged_config, "default"
 
     try:
         with open(config_path, "rb") as f:
-            parsed = tomllib.load(f)
-
-        config = DEFAULT_CONFIG.copy()
-        config = deep_merge(config, parsed)
-
-        profile_name = parsed.get("active_profile", "default")
-        profiles = parsed.get("profile", {})
-        if not isinstance(profiles, dict):
-            profiles = {}
-
-        profile_data = profiles.get(profile_name, {})
-        if not isinstance(profile_data, dict):
-            profile_data = {}
-
-        config = deep_merge(config, profile_data)
-        config["active_profile"] = profile_name
-
-        system_log.info(f"Loaded configuration using profile '{profile_name}'")
-        return config, profile_name
-
+            config_data = tomllib.load(f)
     except Exception as e:
         system_log.error(f"Failed to load .chroniq.toml: {e}")
-        return DEFAULT_CONFIG.copy(), "default"
+        return merged_config, "default"
+
+    # 🧠 Determine the active profile (override > file > default)
+    active_profile = profile or config_data.get("active_profile", "default")
+
+    # 🌍 Apply global config keys from file
+    for key, value in config_data.items():
+        if key not in ("profile", "profiles"):
+            merged_config[key] = value
+
+    # 🎯 Apply profile-specific overrides if they exist
+    profile_section = (
+        config_data.get("profile", {}).get(active_profile)
+        or config_data.get("profiles", {}).get(active_profile)
+    )
+    if profile_section and isinstance(profile_section, dict):
+        for key, value in profile_section.items():
+            merged_config[key] = value
+
+    return merged_config, active_profile
 
 def update_config_value(key, value, config_path=CONFIG_PATH):
     """
