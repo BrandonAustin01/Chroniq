@@ -14,6 +14,7 @@
 <!-- Vibes -->
 ![Made With](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red?style=for-the-badge)
 ![Chroniq Vibe](https://img.shields.io/badge/dev-first-black?style=for-the-badge)
+![Repo Views](https://komarev.com/ghpvc/?username=BrandonAustin01&repo=Chroniq&style=for-the-badge&color=1f1f1f&label=VIEWS)
 
 
 **Chroniq** is your local-first, developer-friendly version manager + changelog tracker.  
