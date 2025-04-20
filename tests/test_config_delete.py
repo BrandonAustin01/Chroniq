@@ -40,26 +40,37 @@ class TestChroniqConfigDelete(unittest.TestCase):
 
     @patch("chroniq.cli.console", new=Console(file=StringIO()))
     def test_delete_global_key(self):
+        """
+        🧪 Verifies that a global config key is removed via CLI with --yes.
+        """
         runner = CliRunner()
-
+    
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / ".chroniq.toml"
-
-            # 🧩 Write a basic config with 'silent' key
-            config = {"silent": True}
+    
+            # 🧩 Create a test config with 'silent' and 'strict' keys
+            config = {
+                "silent": True,
+                "strict": False
+            }
+    
+            # 💾 Write the test config to disk
             with open(config_path, "wb") as f:
                 f.write(tomli_w.dumps(config).encode("utf-8"))
-
-            # 🚀 Run delete with --config and --yes to skip prompt
+    
+            # 🚀 Run 'chroniq config delete silent --yes' with our test config
             result = runner.invoke(
                 main,
                 ["--config", str(config_path), "config", "delete", "silent", "--yes"]
             )
-
-            # ✅ Confirm exit was successful
+    
+            # ✅ Confirm CLI exited successfully
             self.assertEqual(result.exit_code, 0, msg=f"Command failed: {result.output}")
-
-            # ✅ Patch: Check the config file, not CLI output
+    
+            # 🔍 Read the updated config and verify 'silent' was removed
             with open(config_path, "rb") as f:
-                updated = tomllib.load(f)
-            self.assertNotIn("silent", updated)
+                updated_config = tomllib.load(f)
+    
+            self.assertNotIn("silent", updated_config, "Expected 'silent' to be deleted")
+            self.assertIn("strict", updated_config, "Expected 'strict' to remain unchanged")
+

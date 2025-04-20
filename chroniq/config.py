@@ -4,7 +4,7 @@ import tomli_w
 from pathlib import Path
 from rich import print
 from chroniq.utils import emoji
-from chroniq.logger import system_log, activity_log  # ✅ add this
+from chroniq.logger import system_log, activity_log 
 
 
 # Default config file path (can later support multiple tiers)
@@ -32,42 +32,53 @@ def load_config(profile: str = None, path: Path = None):
     # 🧱 Start with full default config
     merged_config = DEFAULT_CONFIG.copy()
 
+    # 📭 If config file doesn't exist, just return the defaults
     if not config_path.exists():
         return merged_config, "default"
 
     try:
+        # 📖 Load the .toml file using Python's built-in TOML reader
         with open(config_path, "rb") as f:
             config_data = tomllib.load(f)
     except Exception as e:
         system_log.error(f"Failed to load .chroniq.toml: {e}")
         return merged_config, "default"
 
-    # 🧠 Determine the active profile (override > file > default)
+    # 🧠 Determine the active profile (CLI override > config file > fallback to "default")
     active_profile = profile or config_data.get("active_profile", "default")
 
-    # 🌍 Apply global config keys from file
+    # 🌍 First, apply top-level/global config keys (excluding profiles)
     for key, value in config_data.items():
         if key not in ("profile", "profiles"):
+            # 🧪 Convert "true"/"false" strings to proper bools
+            if isinstance(value, str) and value.strip().lower() in ("true", "false"):
+                value = value.strip().lower() == "true"
             merged_config[key] = value
 
-    # 🎯 Apply profile-specific overrides if they exist
-    profile_section = (
-        config_data.get("profile", {}).get(active_profile)
-        or config_data.get("profiles", {}).get(active_profile)
-    )
+    # 🎯 Next, apply profile-specific overrides if defined
+    profile_section = None
+    if "profile" in config_data and isinstance(config_data["profile"], dict):
+        profile_section = config_data["profile"].get(active_profile)
+    if not profile_section and "profiles" in config_data and isinstance(config_data["profiles"], dict):
+        profile_section = config_data["profiles"].get(active_profile)
+
     if profile_section and isinstance(profile_section, dict):
         for key, value in profile_section.items():
+            if isinstance(value, str) and value.strip().lower() in ("true", "false"):
+                value = value.strip().lower() == "true"
             merged_config[key] = value
 
     return merged_config, active_profile
+
 
 def update_config_value(key, value, config_path=CONFIG_PATH):
     """
     Update a value in the .chroniq.toml configuration file.
     Supports nested keys using dot notation (e.g., 'profile.dev.silent').
     """
-    existing = load_config(config_path)
+    existing, _ = load_config(path=config_path)
 
+    # 🔍 Traverse into nested dicts if using dot notation
     parts = key.split(".")
     current = existing
 
@@ -76,25 +87,40 @@ def update_config_value(key, value, config_path=CONFIG_PATH):
             current[part] = {}
         current = current[part]
 
+    # 🧠 Normalize value types: str → bool/int where applicable
     val = value
     if isinstance(value, str):
-        if value.lower() in ["true", "false"]:
-            val = value.lower() == "true"
-        elif value.isdigit():
-            val = int(value)
+        lowered = value.strip().lower()
 
+        # ✅ Convert boolean-like strings to real bools
+        if lowered in ("true", "yes", "on"):
+            val = True
+        elif lowered in ("false", "no", "off"):
+            val = False
+
+        # ✅ Convert integers (e.g. "42") safely
+        elif lowered.isdigit():
+            val = int(lowered)
+
+        # ✅ Special case: allow quoted boolean TOML values like "True" or "False"
+        elif lowered in ("\"true\"", "'true'"):
+            val = True
+        elif lowered in ("\"false\"", "'false'"):
+            val = False
+
+
+    # ✍️ Set final key
     current[parts[-1]] = val
 
     try:
         with open(config_path, "wb") as f:
             f.write(tomli_w.dumps(existing).encode("utf-8"))
-
         activity_log.info(f"Updated config key '{key}' to '{val}'")
         return True
-
     except Exception as e:
         system_log.error(f"Error updating config value '{key}' → '{value}': {e}")
         return False
+
 
 def get_config_value(key: str, config_data: dict, profile: str = None) -> dict | None:
     """

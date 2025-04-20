@@ -5,6 +5,9 @@ from chroniq.config import load_config
 from chroniq.defaults import DEFAULT_CONFIG  # ← live default import
 
 class TestChroniqConfigLoader(unittest.TestCase):
+    """
+    ✅ Unit tests for Chroniq's config loading and merging logic.
+    """
 
     def test_fallback_when_missing(self):
         """
@@ -49,7 +52,7 @@ class TestChroniqConfigLoader(unittest.TestCase):
             """
 
             config_path.write_text(EXAMPLE_TOML.strip(), encoding="utf-8")
-            config, profile = load_config(config_path)
+            config, profile = load_config(path=config_path)
 
             # 🧪 Values overridden by [profile.dev]
             self.assertEqual(config["default_bump"], "major")
@@ -66,14 +69,18 @@ class TestChroniqConfigLoader(unittest.TestCase):
 
     def test_partial_config_merges_defaults(self):
         """
-        Partial config files still apply default fallbacks.
+        ✅ Partial config files still apply default fallbacks.
         """
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / ".chroniq.toml"
             config_path.write_text('default_bump = "minor"\n', encoding="utf-8")
 
-            config, _ = load_config(config_path)
+            config, _ = load_config(path=config_path)
+
+            # 🧪 Custom value applied
             self.assertEqual(config["default_bump"], "minor")
+
+            # ✅ Missing keys filled by defaults
             self.assertEqual(config["silent"], DEFAULT_CONFIG["silent"])
             self.assertEqual(config["strict"], DEFAULT_CONFIG["strict"])
 
