@@ -1,0 +1,49 @@
+name: 🙋 Question / Support
+description: Ask a question or get help with using Chroniq.
+title: "[Question]: "
+labels: [question]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        🙋 **Need a hand? You’re in the right place.**
+
+  - type: input
+    id: version
+    attributes:
+      label: Chroniq Version
+      description: Use `chroniq version` to get your version.
+      placeholder: "e.g. 0.9.0"
+    validations:
+      required: false
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Ask away! Be as detailed as needed so we can help fast.
+      placeholder: |
+        I’m trying to use `chroniq config set` but it doesn’t seem to persist...
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-tried
+    attributes:
+      label: What Have You Tried?
+      description: Sharing what you’ve already attempted helps avoid backtracking.
+      placeholder: |
+        I checked my .chroniq.toml and confirmed the config path is correct...
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Anything else we should know?
+      placeholder: Optional – screenshots, logs, environment details, etc.
+    validations:
+      required: false

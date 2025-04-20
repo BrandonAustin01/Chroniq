@@ -1,0 +1,51 @@
+name: ✨ Feature Request
+description: Suggest a new feature or improvement for Chroniq.
+title: "[Feature]: "
+labels: [enhancement]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        💡 **Have an idea? We’d love to hear it!**
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Feature Description
+      description: What do you want to see added or changed?
+      placeholder: I'd like a `chroniq changelog prompt` that auto-detects uncommitted changes...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Why Is This Needed?
+      description: Describe the problem this would solve or the use case it supports.
+      placeholder: This would help automate release preparation in CI...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      description: What part of the project would this impact?
+      options:
+        - label: CLI commands
+        - label: Audit system
+        - label: Config loader
+        - label: Logging system
+        - label: Tests or CI
+        - label: Other (explain below)
+
+  - type: textarea
+    id: other
+    attributes:
+      label: Anything Else?
+      description: Add links, mockups, or context as needed.
+      placeholder: No additional context
+    validations:
+      required: false
